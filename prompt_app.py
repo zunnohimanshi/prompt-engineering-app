@@ -1,68 +1,56 @@
+import streamlit as st
 import openai
 import requests
 import json
 
-# Enter your keys
-openai.api_key = "OPENAI_KEY"
-deepseek_key = "DEEPSEEK_KEY"
+st.set_page_config(page_title="Prompt Engineering Playground", layout="centered")
 
-# List of prompts
 prompts = [
-    {
-        "task": "IT Complaint Classification",
-        "prompt": "You're an assistant at an IT support desk. Categorize the following message into one of the types: [\"Password Issue\", \"Network Problem\", \"Hardware Failure\", \"Other\"]\n\nMessage:\n\"Hi, my internet keeps dropping every 10 mins since the router update. Please fix ASAP!\"\n\nCategory:"
-    },
-    {
-        "task": "HR Circular Summarization",
-        "prompt": "Summarize the below internal HR circular into a few points suitable for a bulletin board (keep it simple):\n\nText:\n\"As per the revised leave policy effective July 1st, employees may now carry forward up to 12 days of unused paid leave into the next calendar year. Additionally, one extra optional holiday is available per quarter, subject to approval. Kindly check the HR portal for updated documents.\"\n\nSummary:"
-    },
-    {
-        "task": "Emoji Logic Reasoning",
-        "prompt": "Guess the next item in this odd sequence by observing pattern logic:\n\nExamples:\n🌧️ : ☔\n☀️ : 😎\n❄️ : 🧤\n🌪️ : ?\n\nAnswer:"
-    },
-    {
-        "task": "Messy Complaint JSON Extraction",
-        "prompt": "Extract structured product complaint from the text below and give output in valid JSON format.\n\nReview:\n\"Ordered the so-called ‘premium’ headphones. Mic crackles when I talk and battery barely lasts 2 hours. Sound is OK but nothing special.\"\n\nJSON Format:\n{\n  \"product\": \"\",\n  \"issues\": [],\n  \"positive\": []\n}"
-    },
-    {
-        "task": "Step-by-Step Financial Calculation",
-        "prompt": "Solve step-by-step:\n\nA client had ₹1,000. They paid ₹375 for repairs, then refunded ₹150 to a customer, and finally received a payment of ₹600. What is their current balance?\n\nStep-by-step answer:"
-    }
+    {"task": "Text Classification", "prompt": "Classify the following email into one of the categories: Work, Personal, Promotion, Spam.\n\nEmail: 'Hey! Our annual sale is live now. Grab 50% off!'"},
+    {"task": "Summarization", "prompt": "Summarize this paragraph into 2-3 lines for a newsletter: 'Banasthali Vidyapith is a women's university...'"},
+    {"task": "Few-Shot Reasoning", "prompt": "Guess the pattern: 🟥 ➡️ 🟧 ➡️ 🟨 ➡️ ?"},
+    {"task": "Tool Calling (JSON Output)", "prompt": "Extract the product complaint from this message and format it as JSON:\n\n'Bought this laptop last week, battery dies in 2 hours.'"},
+    {"task": "Chain-of-Thought Reasoning", "prompt": "Solve this: A client had ₹1,000. They spent ₹250 on repair and refunded ₹100. What's left? Show step-by-step."}
 ]
 
-# Function to query OpenAI GPT-4o
-def call_openai(prompt):
-    try:
-        result = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return result['choices'][0]['message']['content']
-    except Exception as e:
-        return "[Error with OpenAI] " + str(e)
+st.title("🧠 Prompt Engineering Playground")
+st.markdown("Select a task and run the prompt using OpenAI or DeepSeek APIs.")
 
-# Function to query DeepSeek API
-def call_deepseek(prompt):
-    try:
-        headers = {
-            "Authorization": f"Bearer {deepseek_key}",
-            "Content-Type": "application/json"
-        }
-        body = {
-            "model": "deepseek-chat",
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.7
-        }
-        response = requests.post("https://api.deepseek.com/chat/completions", headers=headers, json=body)
-        return response.json()['choices'][0]['message']['content']
-    except Exception as e:
-        return "[Error with DeepSeek] " + str(e)
+task_list = [p["task"] for p in prompts]
+task_choice = st.selectbox("🎯 Choose an NLP Task", task_list)
 
-# Loop to run tests
-for item in prompts:
-    print(f"\n=== Task: {item['task']} ===")
-    print("\nPrompt:\n" + item['prompt'])
+selected_prompt = next((p["prompt"] for p in prompts if p["task"] == task_choice), "")
+st.subheader("📄 Prompt Preview")
+st.code(selected_prompt, language="markdown")
 
-    print("\n🔵 OpenAI Output:\n" + call_openai(item['prompt']))
-    print("\n🟢 DeepSeek Output:\n" + call_deepseek(item['prompt']))
-    print("\n" + "="*50)
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("🚀 Run with OpenAI"):
+        try:
+            response = openai.Completion.create(
+                model="text-davinci-003",
+                prompt=selected_prompt,
+                max_tokens=150
+            )
+            st.success(response.choices[0].text.strip())
+        except Exception as e:
+            st.error(f"OpenAI Error: {e}")
+
+with col2:
+    if st.button("🛰️ Run with DeepSeek"):
+        try:
+            url = "https://api.deepseek.com/chat/completions"
+            headers = {
+                "Authorization": "Bearer YOUR_DEEPSEEK_KEY",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "deepseek-chat",
+                "messages": [{"role": "user", "content": selected_prompt}]
+            }
+            response = requests.post(url, headers=headers, json=payload)
+            result = response.json()
+            st.success(result["choices"][0]["message"]["content"])
+        except Exception as e:
+            st.error(f"DeepSeek Error: {e}")
